@@ -1,4 +1,5 @@
 {
+  "$schema": "https://www.schemastore.org/chrome-manifest",
   "manifest_version": 3,
   "name": "Text to Speech",
   "description": "Text to Speech",

@@ -45,7 +45,7 @@ class KokoroTTS {
       const { eventId, sessionHash } = await this.join([query, voice, speed, useGpu]);
       const path = `/gradio_api/queue/data?session_hash=${sessionHash}`;
       const response = await fetch(`${this.baseUrl}${path}`, {
-        headers: { 'Accept': 'text/event-stream' }
+        headers: { 'Accept': 'text/event-stream' },
       });
       if (!response.ok) throw Error(`${path} ${response.status} ${response.statusText}`);
 
@@ -53,21 +53,21 @@ class KokoroTTS {
       const decoder = new TextDecoder();
 
       let buffer = '';
-    
+
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
-        
+
         const text = decoder.decode(value, { stream: true });
         buffer += text;
-        
+
         const lines = buffer.split('\n');
-        
+
         buffer = lines.pop() || '';
-        
+
         let eventData = '';
         for (const line of lines) {
           if (line.trim() === '') {
@@ -107,13 +107,15 @@ class KokoroTTS {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(/**@type {KokoroPayload}*/({
-        data,
-        event_data: null,
-        fn_index: 4,
-        trigger_id: 2,
-        session_hash,
-      })),
+      body: JSON.stringify(
+        /**@type {KokoroPayload}*/ ({
+          data,
+          event_data: null,
+          fn_index: 4,
+          trigger_id: 2,
+          session_hash,
+        }),
+      ),
     });
     if (!response.ok) throw Error(`${path} ${response.status} ${response.statusText}`);
 
@@ -122,7 +124,7 @@ class KokoroTTS {
   }
 
   /**
-   * @param {number} len 
+   * @param {number} len
    * @returns {string}
    */
   #randomSessionHash(len = 11) {
@@ -136,7 +138,7 @@ async function setupOffscreenDocument(path, justification) {
   // of them is the offscreen document with the given path
   const existingContexts = await chrome.runtime.getContexts({
     contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
-    documentUrls: path
+    documentUrls: path,
   });
 
   if (existingContexts.length > 0) {
@@ -157,6 +159,34 @@ async function setupOffscreenDocument(path, justification) {
   }
 }
 
+/**
+ * lmnt text to speech
+ * @param {string} text
+ * @returns {Promise<string>}
+ */
+async function lmnt(text) {
+  const res = await fetch('https://api.lmnt.com/v1/ai/speech', {
+    method: 'POST',
+    headers: {
+      'x-api-key': '',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      voice: 'sophie',
+      text,
+      model: 'aurora',
+      language: 'auto',
+      format: 'wav',
+      speed: 1,
+      conversational: true,
+      return_durations: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch transcript: ${res.status} ${res.statusText}`);
+  const data = await res.json();
+  return data.audio;
+}
+
 const kokoroTTS = new KokoroTTS();
 
 chrome.offscreen.createDocument({
@@ -174,20 +204,24 @@ chrome.contextMenus.removeAll().then(() => {
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  // chrome.tts.speak(info.selectionText, { 'lang': 'en-gb', 'rate': 1, 'volume': 0.5, 'voiceName': 'Google UK English Male' });
-  try {
-    // await setupOffscreenDocument(OFFSCREEN_URL, 'tts');
+  if (!info.selectionText) return;
+  chrome.tts.speak(info.selectionText, { 'lang': 'en-gb', 'rate': 1, 'volume': 1, 'voiceName': 'Google UK English Male' });
+  // try {
+  //   // await setupOffscreenDocument(OFFSCREEN_URL, 'tts');
 
-    const audioUrl = await Promise.any([
-      kokoroTTS.generate(info.selectionText, 'am_liam', 1, false),
-      kokoroTTS.generate(info.selectionText, 'am_liam', 1, true),
-    ]);
-    // console.log(audioUrl);
+  //   // const audioUrl = await Promise.any([
+  //   //   kokoroTTS.generate(info.selectionText, 'am_liam', 1, false),
+  //   //   kokoroTTS.generate(info.selectionText, 'am_liam', 1, true),
+  //   // ]);
+  //   // console.log(audioUrl);
 
-    await chrome.runtime.sendMessage({ audioUrl, target: 'offscreen' });
-  } catch (error) {
-    console.error('TTS generation failed:', error);
-  }
+  //   const audio = await lmnt(info.selectionText)
+  //   const audioUrl = `data:audio/wav;base64,${audio}`
+
+  //   await chrome.runtime.sendMessage({ audioUrl, target: 'offscreen' });
+  // } catch (error) {
+  //   console.error('TTS generation failed:', error);
+  // }
 });
 
 chrome.runtime.onSuspend.addListener(async () => {

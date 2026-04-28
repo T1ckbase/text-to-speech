@@ -1,10 +1,11 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-    },
-    "typeAcquisition": {
-        "include": [
-            "chrome"
-        ]
-    }
+  "$schema": "https://www.schemastore.org/jsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext"
+  },
+  "typeAcquisition": {
+    "include": [
+      "chrome"
+    ]
+  }
 }
